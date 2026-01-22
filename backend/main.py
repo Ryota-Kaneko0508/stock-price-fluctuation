@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Header
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
@@ -59,9 +59,9 @@ async def create_user(user_request: UserRequest, session: SessionDep) -> Users:
     session.refresh(new_user)
     return new_user
 
-@app.get("/stocks/")
-async def get_stocks(user_id: int, session: SessionDep) -> list[Stock]:
-    notifications = session.exec(select(Notifications).where(Notifications.UserID == user_id)).all()
+@app.get("/stocks")
+async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -> list[Stock]:
+    notifications = session.exec(select(Notifications).where(Notifications.UserID == x_user_id)).all()
 
     res = []
 
