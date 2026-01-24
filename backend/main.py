@@ -45,11 +45,21 @@ class UserRequest(BaseModel):
     id: str
     email: str
 
+class StockPriceRequest(BaseModel):
+    tick: str
+    date: str
+    offset: int
+
 class Stock(BaseModel):
     tick: str
     company: str
     price_today: float
     price_yesterday: float
+
+class StockDetail(BaseModel):
+    tick: str
+    company: str
+    prices: list[float]
 
 @app.post("/users")
 async def create_user(user_request: UserRequest, session: SessionDep) -> Users:
@@ -70,14 +80,14 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
         tick = notification.Tick
 
         #Tikerで一つの銘柄の情報を取得
-        STOCK = yf.Ticker(tick) 
+        stock = yf.Ticker(tick) 
 
         # 情報取得(.info)
-        STOCK_info = STOCK.info
+        stock_info = stock.info
 
-        company_name = STOCK_info["longName"]
-        price_today = STOCK_info["currentPrice"]
-        price_yesterday = STOCK_info["regularMarketPreviousClose"]
+        company_name = stock_info["longName"]
+        price_today = stock_info["currentPrice"]
+        price_yesterday = stock_info["regularMarketPreviousClose"]
 
         stock_data = Stock(
             tick=tick,
@@ -89,5 +99,30 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
         res.append(stock_data)
 
     return res
+
+@app.get("/stocks/{stock_id}")
+async def get_stocks(stock_id, tick: str, date: str, offset: int):
+
+    #Tikerで一つの銘柄の情報を取得
+    stock = yf.Ticker(stock_id) 
+
+    if "longName" not in stock.info:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # 情報取得(.info)
+    stock_info = stock.info
+
+    formatted_date = date.replace('/', '-')
+    stock_download = stock.history(period="1d", interval="1m")
+
+    print(stock_download)
+
+    res = StockDetail()
+
+    res.tick = stock_info["symbol"]
+    res.company = stock_info["longName"]
+
+    return res
+
 
 
