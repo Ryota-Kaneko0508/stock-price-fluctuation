@@ -45,10 +45,9 @@ class UserRequest(BaseModel):
     id: str
     email: str
 
-class StockPriceRequest(BaseModel):
+class StockRegistRequest(BaseModel):
+    user_id: int
     tick: str
-    date: str
-    offset: int
 
 class Stock(BaseModel):
     tick: str
@@ -60,6 +59,11 @@ class StockDetail(BaseModel):
     tick: str
     company: str
     prices: list[float]
+
+class Notification(BaseModel):
+    user_id: int
+    tick: str
+    status: bool
 
 @app.post("/users")
 async def create_user(user_request: UserRequest, session: SessionDep) -> Users:
@@ -107,7 +111,7 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     stock = yf.Ticker(stock_id) 
 
     if "longName" not in stock.info:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="The stock does not exist.")
 
     # 情報取得(.info)
     stock_info = stock.info
@@ -123,6 +127,30 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     res.company = stock_info["longName"]
 
     return res
+
+@app.post("/stocks/{stock_id}")
+async def regist_stock(stock_id, regist_request: StockRegistRequest, session: SessionDep):
+
+    #Tikerで一つの銘柄の情報を取得
+    stock = yf.Ticker(stock_id) 
+
+    if "longName" not in stock.info:
+        raise HTTPException(status_code=404, detail="The stock does not exist.")
+    
+    new_notifications = Notifications(UserID=regist_request.user_id, Tick=regist_request.tick, Status=False)
+    session.add(new_notifications)
+    session.commit()
+    session.refresh(new_notifications)
+
+    res = Notification(user_id=regist_request.user_id, tick=regist_request.tick, status=False)
+
+    return res
+    
+
+
+
+
+
 
 
 
