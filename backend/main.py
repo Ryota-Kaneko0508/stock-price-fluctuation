@@ -49,6 +49,10 @@ class StockRegistRequest(BaseModel):
     user_id: int
     tick: str
 
+class StockPatchRequest(BaseModel):
+    user_id: int
+    status: bool
+
 class Stock(BaseModel):
     tick: str
     company: str
@@ -129,7 +133,7 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     return res
 
 @app.post("/stocks/{stock_id}")
-async def regist_stock(stock_id, regist_request: StockRegistRequest, session: SessionDep):
+async def regist_notification(stock_id, regist_request: StockRegistRequest, session: SessionDep):
 
     #Tikerで一つの銘柄の情報を取得
     stock = yf.Ticker(stock_id) 
@@ -145,12 +149,28 @@ async def regist_stock(stock_id, regist_request: StockRegistRequest, session: Se
     res = Notification(user_id=regist_request.user_id, tick=regist_request.tick, status=False)
 
     return res
+
+@app.patch("/stocks/{stock_id}")
+async def update_notification(stock_id, update_request: StockPatchRequest, session: SessionDep):
+
+        #Tikerで一つの銘柄の情報を取得
+    stock = yf.Ticker(stock_id) 
+
+    if "longName" not in stock.info:
+        raise HTTPException(status_code=404, detail="The stock does not exist.")
     
+    notifications = session.exec(select(Notifications).where(
+        Notifications.UserID == update_request.user_id,
+        Notifications.Tick == stock_id)).all()
 
+    if len(notifications) != 0:
+        update_notification = notifications[0]
+        update_notification.Status = update_request.status
 
+        session.add(update_notification)
+        session.commit()
+        session.refresh(update_notification)
 
+        res = Notification(user_id=update_request.user_id, tick=stock_id, status=update_request.status)
 
-
-
-
-
+        return res
