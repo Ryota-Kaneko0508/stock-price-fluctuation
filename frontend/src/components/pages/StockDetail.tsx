@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import { LineChart, LineChartProps } from '@mui/x-charts/LineChart';
+import { Navigate } from "react-router-dom";
 
 const xlabel = [1, 2, 3, 5, 8, 10];
 
@@ -13,6 +14,11 @@ export const StockDetail = () => {
     series: [{ data: [2, 5.5, 2, 8.5, 1.5, 5] }],
     height: 500,
   };
+
+  if (!localStorage.getItem("userID")) {
+    return <Navigate to = "/" />
+  }
+
   return (
     <SWrapper>
       <SHeaderContainer>

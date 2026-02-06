@@ -1,6 +1,44 @@
 import styled from "styled-components";
+import { useEffect, useState } from 'react';
+import { useNavigate, Navigate } from "react-router-dom";
+import React from 'react';
+import axios from "axios";
+
+const endpoint = "http://localhost:8000/users";
 
 export const Signup = () => {
+  const [email, setEmail] = useState("");
+  const navigate = useNavigate();
+  const onChangeInput = (e : React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
+  // idは今のところ仮
+  const requestBody = {id: "1", email: email}; 
+  const onClickSignUp = () => {
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+    if (!emailRegex.test(email)) {
+      alert("正しいメールアドレスの形式で入力してください。");
+      return;
+    };
+
+    axios.post(endpoint, requestBody).then((res) => {
+      if (Object.keys(res.data).length > 0) {
+        localStorage.setItem("userID", res.data.ID);
+        navigate("/stocks");
+      } else {
+        alert("登録に失敗しました");  
+      }
+    }).catch((e) => {
+      alert("登録に失敗しました");
+    });
+  };
+
+  if (localStorage.getItem("userID")) {
+    return <Navigate to = "/stocks" />
+  }
+
   return (
     <SWrapper>
       <SContainer>
@@ -10,8 +48,8 @@ export const Signup = () => {
           通知できる、デイトレード向けアプリケーションです。通知に使用するメールアドレスを登録して、アプリを始めましょう。
         </p>
         <SInputArea>
-          <SInput type="text" placeholder="メールアドレスを入力してください" />
-          <SButton>始める</SButton>
+          <SInput type="email" placeholder="メールアドレスを入力してください" onChange={onChangeInput} />
+          <SButton onClick={onClickSignUp}>始める</SButton>
         </SInputArea>
       </SContainer>
     </SWrapper>

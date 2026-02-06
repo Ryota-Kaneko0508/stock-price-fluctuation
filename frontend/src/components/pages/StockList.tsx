@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import * as React from 'react';
 import Paper from "@mui/material/Paper";
 import Table from "@mui/material/Table";
@@ -9,6 +8,7 @@ import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import styled from "styled-components";
+import { Navigate } from "react-router-dom";
 
 interface Column {
   id: "tick" | "company" | "price_yesterday" | "price_today" | "diff";
@@ -88,6 +88,10 @@ export const StockList = () => {
   const onClickAdd = () => {
     alert("test");
   };
+
+  if (!localStorage.getItem("userID")) {
+    return <Navigate to = "/" />
+  }
   
   return (
     <SWrapper>
