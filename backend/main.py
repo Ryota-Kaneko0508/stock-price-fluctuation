@@ -32,11 +32,6 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-origins = [
-    "http://localhost:3000",
-]
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # アプリ起動時に呼ばれる
@@ -44,7 +39,6 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
     print("アプリ終了")
-
 
 app = FastAPI(lifespan=lifespan)
 
