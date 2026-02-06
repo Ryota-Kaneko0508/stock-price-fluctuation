@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query, Header
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+from fastapi.middleware.cors import CORSMiddleware
 
 import yfinance as yf
 import pandas as pd
@@ -31,6 +32,11 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
+origins = [
+    "http://localhost:3000",
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # アプリ起動時に呼ばれる
@@ -39,7 +45,20 @@ async def lifespan(app: FastAPI):
     yield
     print("アプリ終了")
 
+
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class UserRequest(BaseModel):
     id: str
