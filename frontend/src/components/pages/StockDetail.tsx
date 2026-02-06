@@ -1,6 +1,7 @@
 import styled from "styled-components";
-import { LineChart, LineChartProps } from '@mui/x-charts/LineChart';
+import { LineChart } from '@mui/x-charts/LineChart';
 import { Navigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const xlabel = [1, 2, 3, 5, 8, 10];
 
@@ -18,6 +19,8 @@ export const StockDetail = () => {
   if (!localStorage.getItem("userID")) {
     return <Navigate to = "/" />
   }
+
+  
 
   return (
     <SWrapper>
