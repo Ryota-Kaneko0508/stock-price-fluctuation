@@ -1,7 +1,12 @@
 import styled from "styled-components";
 import { Link } from "react-router-dom";
+import { ReactNode, FC } from "react";
 
-export const Header = (props: any) => {
+type Props = {
+  children: ReactNode;
+};
+
+export const Header: FC<Props> = (props) => {
   const { children } = props;
   return (
     <>
