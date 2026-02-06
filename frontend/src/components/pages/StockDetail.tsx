@@ -1,18 +1,59 @@
 import styled from "styled-components";
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
-const xlabel = [1, 2, 3, 5, 8, 10];
+const today = new Date();
+const formattedDate = today.toLocaleDateString('ja-JP', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
 
 export const StockDetail = () => {
+  const [times, setTimes] = useState<Date[]>([]);
+  const [prices, setPrices] = useState<number[]>([]);
+
   const onClickSetting = () => {
     alert("test");
   };
 
+  useEffect(() => {
+    // あとでへんこうする
+    const tick = "7203.T"
+    const endpoint = "http://localhost:8000/stocks/" + tick;
+    
+    const offset = 20
+    
+    const query = {
+      tick: tick,
+      date: formattedDate,
+      offset: offset
+    }
+    
+    axios.get(endpoint, {params: query}).then((res) => {
+      const dateObjects = res.data.times.map((t: string) => {
+        const [hours, minutes] = t.split(':').map(Number);
+        const d = new Date();
+        d.setHours(hours, minutes, 0, 0);
+        return d;
+      });
+      setTimes(dateObjects);
+      setPrices(res.data.prices);
+    });
+    
+  }, []);
+  
   const chartProps = {
-    xAxis: [{ data: xlabel }],
-    series: [{ data: [2, 5.5, 2, 8.5, 1.5, 5] }],
+    xAxis: [{
+      data: times,
+      scaleType: 'time' as const,
+      valueFormatter: (value: Date) => 
+        value.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    }],
+    yAxis: [{label: "株価"}],
+    series: [{ curve: 'linear' as const, data: prices }],
     height: 500,
   };
 
@@ -20,13 +61,11 @@ export const StockDetail = () => {
     return <Navigate to = "/" />
   }
 
-  
-
   return (
     <SWrapper>
       <SHeaderContainer>
-        <STitle>AAPL, Apple Inc <br />
-          2016/01/12
+        <STitle>{"7203.T"}, {"Toyota Motor Corporation"} <br />
+          {formattedDate}
         </STitle>
         <SButton onClick={onClickSetting}>通知設定</SButton>
       </SHeaderContainer>
