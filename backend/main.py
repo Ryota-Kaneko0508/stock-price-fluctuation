@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import yfinance as yf
 import pandas as pd
+import datetime
+from zoneinfo import ZoneInfo
 
 class Users(SQLModel, table=True):
     ID: int | None = Field(default=None, primary_key=True)
@@ -76,6 +78,7 @@ class StockDetail(BaseModel):
     tick: str
     company: str
     prices: list[float]
+    times: list[str]
 
 class Notification(BaseModel):
     user_id: int
@@ -133,17 +136,32 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     # 情報取得(.info)
     stock_info = stock.info
 
-    formatted_date = date.replace('/', '-')
-    stock_download = stock.history(period="1d", interval="1m")
+    time_zone = stock_info["exchangeTimezoneName"]
 
-    print(stock_download)
+    start_dt = pd.Timestamp.now(tz=time_zone).floor("D")
+    end_dt = pd.Timestamp.now(tz=time_zone).ceil("D")
 
-    res = StockDetail()
+    stock_download = stock.history(start=start_dt,end=end_dt, interval="1h")
 
-    res.tick = stock_info["symbol"]
-    res.company = stock_info["longName"]
+    res_tick = stock_info["symbol"]
+    res_company = stock_info["longName"]
 
-    return res
+    if stock_download.empty:
+        return StockDetail(
+            tick = res_tick,
+            company = res_company,
+            prices = [],
+            times = []
+        )
+
+    stock_download.index = stock_download.index.tz_convert('Asia/Tokyo')
+
+    return StockDetail(
+        tick = res_tick,
+        company = res_company,
+        prices = stock_download["Close"].values.tolist()[:offset],
+        times = stock_download.index.strftime("%H:%M").tolist()[:offset]
+    )
 
 @app.post("/stocks/{stock_id}")
 async def regist_notification(stock_id, regist_request: StockRegistRequest, session: SessionDep):
