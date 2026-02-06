@@ -9,6 +9,8 @@ import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import styled from "styled-components";
 import { Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 interface Column {
   id: "tick" | "company" | "price_yesterday" | "price_today" | "diff";
@@ -64,15 +66,30 @@ function createData(
   return { tick, company, price_yesterday, price_today, diff };
 }
 
-const rows = [
-  createData("AAPL", "Apple, Inc", 15240, 16980),
-  createData("TSLA", "Tesla, Inc", 20123, 19811),
-  createData("MSFT", "Micro Sort Inc", 30000, 4000),
-];
-
 export const StockList = () => {
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [stocks, setStocks] = useState<Data[]>([]);
+
+  useEffect(() => {
+    const endpoint = "http://localhost:8000/stocks";
+
+    const userId = localStorage.getItem("userID");
+
+    const headers = {
+      headers: {
+        "x-user-id": userId
+      }
+    };
+
+    axios.get(endpoint, headers).then((res) => {
+      const datas = res.data.map((item : any) => {
+        return createData(item.tick, item.company, item.price_yesterday, item.price_today);
+      });
+      setStocks(datas);
+    });
+
+  }, []);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -116,7 +133,7 @@ export const StockList = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows
+              {stocks
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row) => {
                   return (
@@ -152,7 +169,7 @@ export const StockList = () => {
         <TablePagination
           rowsPerPageOptions={[10, 25, 100]}
           component="div"
-          count={rows.length}
+          count={stocks.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
