@@ -1,4 +1,4 @@
-import * as React from 'react';
+import * as React from "react";
 import Paper from "@mui/material/Paper";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -8,6 +8,13 @@ import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
 import TableRow from "@mui/material/TableRow";
 import styled from "styled-components";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 import { Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -17,7 +24,7 @@ interface Column {
   label: string;
   minWidth?: number;
   align?: "right";
-
+  priceFormat?: (value: number, currency: string) => string;
   format?: (value: number) => string;
 }
 
@@ -29,21 +36,23 @@ const columns: readonly Column[] = [
     label: "終値",
     minWidth: 170,
     align: "right",
-    format: (value: number) => value.toLocaleString("ja-JP", { style: "currency", currency: "JPY" }),
+    priceFormat: (value: number, currency: string) =>
+      value.toLocaleString("ja-JP", { style: "currency", currency: currency })
   },
   {
     id: "price_today",
     label: "株価",
     minWidth: 170,
     align: "right",
-    format: (value: number) => value.toLocaleString("ja-JP", { style: "currency", currency: "JPY" }),
+    priceFormat: (value: number, currency: string) =>
+      value.toLocaleString("ja-JP", { style: "currency", currency: currency }),
   },
   {
     id: "diff",
     label: "差分",
     minWidth: 170,
     align: "right",
-    format: (value: number) => 
+    format: (value: number) =>
       (value > 0 ? "+" : "") + value.toLocaleString("ja-JP"),
   },
 ];
@@ -51,6 +60,7 @@ const columns: readonly Column[] = [
 interface Data {
   tick: string;
   company: string;
+  currency: string;
   price_yesterday: number;
   price_today: number;
   diff: number;
@@ -59,37 +69,61 @@ interface Data {
 function createData(
   tick: string,
   company: string,
+  currency: string,
   price_yesterday: number,
   price_today: number,
 ): Data {
   const diff = price_today - price_yesterday;
-  return { tick, company, price_yesterday, price_today, diff };
+  return { tick, company, currency, price_yesterday, price_today, diff };
 }
 
 export const StockList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [stocks, setStocks] = useState<Data[]>([]);
+  const [inputStock, setInputStock] = useState("");
+  const [open, setOpen] = useState(false);
+  const userId = localStorage.getItem("userID");
 
-  useEffect(() => {
+  const fetchStocks = () => {
     const endpoint = "http://localhost:8000/stocks";
-
-    const userId = localStorage.getItem("userID");
-
+  
     const headers = {
       headers: {
-        "x-user-id": userId
-      }
+        "x-user-id": userId,
+      },
     };
-
+  
     axios.get(endpoint, headers).then((res) => {
-      const datas = res.data.map((item : any) => {
-        return createData(item.tick, item.company, item.price_yesterday, item.price_today);
+      const datas = res.data.map((item: any) => {
+        console.log(item.currency);
+        return createData(
+          item.tick,
+          item.company,
+          item.currency,
+          item.price_yesterday,
+          item.price_today,
+        );
       });
       setStocks(datas);
     });
+  }
 
+  useEffect(() => {
+    fetchStocks();
   }, []);
+
+  const handleOpen = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const onChangeInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInputStock(event.target.value);
+  };
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -103,18 +137,30 @@ export const StockList = () => {
   };
 
   const onClickAdd = () => {
-    alert("test");
+    const endpoint = `http://localhost:8000/stocks/${inputStock}`;
+    const requestBody = {user_id: userId, tick: inputStock}; 
+
+    axios.post(endpoint, requestBody).then((res) => {
+      setOpen(false);
+      alert("登録が完了しました！");
+      setInputStock("");
+      fetchStocks();
+
+    }).catch((e) => {
+      alert("該当する銘柄が見つかりませんでした");
+    });
+
   };
 
   if (!localStorage.getItem("userID")) {
-    return <Navigate to = "/" />
+    return <Navigate to="/" />;
   }
-  
+
   return (
     <SWrapper>
       <SHeaderContainer>
         <STitle>株価一覧</STitle>
-        <SButton onClick={onClickAdd}>+ 追加する</SButton>
+        <SButton onClick={handleOpen}>+ 追加する</SButton>
       </SHeaderContainer>
       <Paper sx={{ width: "100%", overflow: "hidden" }}>
         <TableContainer sx={{ maxHeight: 440 }}>
@@ -146,17 +192,28 @@ export const StockList = () => {
                       {columns.map((column) => {
                         const value = row[column.id];
 
+                        let displayValue = value;
+                        if (typeof value === "number") {
+                            if (column.priceFormat) {
+                              displayValue = column.priceFormat(value, row.currency);
+                            } else if (column.format) {
+                              displayValue = column.format(value);
+                            }
+                        }
+
                         let textColor = "inherit";
-                        
+
                         if (column.id === "diff") {
                           if (row.diff > 0) textColor = "green";
                           if (row.diff <= 0) textColor = "red";
                         }
                         return (
-                          <TableCell key={column.id} align={column.align} style={{color: textColor}}>
-                            {column.format && typeof value === "number"
-                              ? column.format(value)
-                              : value}
+                          <TableCell
+                            key={column.id}
+                            align={column.align}
+                            style={{ color: textColor }}
+                          >
+                            {displayValue}
                           </TableCell>
                         );
                       })}
@@ -176,6 +233,29 @@ export const StockList = () => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>銘柄の購読追加</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            追加したい銘柄のID（Tickコード）を入力してください。
+          </DialogContentText>
+          <TextField
+            autoFocus
+            required
+            margin="dense"
+            id="name"
+            name="tick"
+            label="銘柄ID (例: 7203.T)"
+            onChange={onChangeInput}
+            fullWidth
+            variant="standard"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>キャンセル</Button>
+          <Button onClick={onClickAdd}>追加</Button>
+        </DialogActions>
+      </Dialog>
     </SWrapper>
   );
 };

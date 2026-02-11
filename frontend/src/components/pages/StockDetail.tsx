@@ -14,6 +14,7 @@ const formattedDate = today.toLocaleDateString('ja-JP', {
 export const StockDetail = () => {
   const [times, setTimes] = useState<Date[]>([]);
   const [prices, setPrices] = useState<number[]>([]);
+  const [isShowModal, setIsShowModal] = useState(false);
 
   const onClickSetting = () => {
     alert("test");

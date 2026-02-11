@@ -71,12 +71,14 @@ class StockPatchRequest(BaseModel):
 class Stock(BaseModel):
     tick: str
     company: str
+    currency: str
     price_today: float
     price_yesterday: float
 
 class StockDetail(BaseModel):
     tick: str
     company: str
+    currency: str
     prices: list[float]
     times: list[str]
 
@@ -112,10 +114,12 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
         company_name = stock_info["longName"]
         price_today = stock_info["currentPrice"]
         price_yesterday = stock_info["regularMarketPreviousClose"]
+        currency = stock_info["currency"]
 
         stock_data = Stock(
             tick=tick,
             company=company_name,
+            currency=currency,
             price_today=price_today,
             price_yesterday=price_yesterday
         )
@@ -141,7 +145,7 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     start_dt = pd.Timestamp.now(tz=time_zone).floor("D")
     end_dt = pd.Timestamp.now(tz=time_zone).ceil("D")
 
-    stock_download = stock.history(start=start_dt,end=end_dt, interval="1h")
+    stock_download = stock.history("JPY=X", start=start_dt,end=end_dt, interval="1h")
 
     res_tick = stock_info["symbol"]
     res_company = stock_info["longName"]
@@ -159,6 +163,7 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     return StockDetail(
         tick = res_tick,
         company = res_company,
+        currency= res_currency,
         prices = stock_download["Close"].values.tolist()[:offset],
         times = stock_download.index.strftime("%H:%M").tolist()[:offset]
     )
