@@ -1,8 +1,14 @@
 import styled from "styled-components";
 import { LineChart } from '@mui/x-charts/LineChart';
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogTitle from "@mui/material/DialogTitle";
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 
 const today = new Date();
 const formattedDate = today.toLocaleDateString('ja-JP', {
@@ -12,46 +18,75 @@ const formattedDate = today.toLocaleDateString('ja-JP', {
 });
 
 export const StockDetail = () => {
-  const [times, setTimes] = useState<Date[]>([]);
+  const location = useLocation();
+  const [dates, setDates] = useState<Date[]>([]);
   const [prices, setPrices] = useState<number[]>([]);
-  const [isShowModal, setIsShowModal] = useState(false);
+  const [status, setStatus] = useState(location.state.status);
+  const tick = location.state.tick;
+  const company = location.state.company;
+  const [open, setOpen] = useState(false);
+  const userId = localStorage.getItem("userID");
 
-  const onClickSetting = () => {
-    alert("test");
+  const handleOpen = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
   };
 
   useEffect(() => {
-    // あとでへんこうする
-    const tick = "7203.T"
-    const endpoint = "http://localhost:8000/stocks/" + tick;
+    const endpoint = `http://localhost:8000/stocks/${tick}`;
     
-    const offset = 20
+    const offset = 10
     
     const query = {
       tick: tick,
       date: formattedDate,
       offset: offset
     }
+
+    const headers = {
+      "x-user-id": userId,
+    };
     
-    axios.get(endpoint, {params: query}).then((res) => {
-      const dateObjects = res.data.times.map((t: string) => {
-        const [hours, minutes] = t.split(':').map(Number);
-        const d = new Date();
-        d.setHours(hours, minutes, 0, 0);
-        return d;
+    axios.get(endpoint, {params: query, headers: headers}).then((res) => {
+      const dateObjects = res.data.dates.map((date: string) => {
+        return new Date(date);
       });
-      setTimes(dateObjects);
+      setDates(dateObjects);
       setPrices(res.data.prices);
+      setStatus(res.data.status)
     });
     
   }, []);
+
+  const handleToggleStatus = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newStatus = event.target.checked;
+    const endpoint = `http://localhost:8000/stocks/${tick}`;
+    const requestBody = {user_id: userId, status: newStatus}; 
+
+    axios.patch(endpoint, requestBody).then((res) => {
+      setStatus(res.data.status);
+      console.log(res.data.status);
+    }).catch((e) => {
+      alert("該当する銘柄が見つかりませんでした");
+    });
+  }
   
   const chartProps = {
     xAxis: [{
-      data: times,
+      data: dates,
       scaleType: 'time' as const,
-      valueFormatter: (value: Date) => 
-        value.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      tickNumber: 5,
+      valueFormatter: (value: Date) => {
+        const y = value.getFullYear();
+        const m = value.getMonth() + 1;
+        const d = value.getDate();
+        const hh = value.getHours().toString().padStart(2, '0');
+        const mm = value.getMinutes().toString().padStart(2, '0');
+        return `${y}/${m}/${d} ${hh}:${mm}`;
+      }
     }],
     yAxis: [{label: "株価"}],
     series: [{ curve: 'linear' as const, data: prices }],
@@ -65,14 +100,20 @@ export const StockDetail = () => {
   return (
     <SWrapper>
       <SHeaderContainer>
-        <STitle>{"7203.T"}, {"Toyota Motor Corporation"} <br />
-          {formattedDate}
-        </STitle>
-        <SButton onClick={onClickSetting}>通知設定</SButton>
+        <STitle>{tick}, {company}</STitle>
+        <SButton onClick={handleOpen}>通知設定</SButton>
       </SHeaderContainer>
       <LineChart
         {...chartProps}
       />
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>{tick}の通知設定</DialogTitle>
+        <DialogActions style={{display: "flex", justifyContent: "center"}}>
+          <FormGroup>
+            <FormControlLabel control={<Switch checked={status} onChange={handleToggleStatus} />} label="通知" />
+          </FormGroup>
+        </DialogActions>
+      </Dialog>
     </SWrapper>
   );
 };

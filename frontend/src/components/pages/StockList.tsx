@@ -15,7 +15,7 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
 
@@ -61,6 +61,7 @@ interface Data {
   tick: string;
   company: string;
   currency: string;
+  status: boolean;
   price_yesterday: number;
   price_today: number;
   diff: number;
@@ -70,14 +71,16 @@ function createData(
   tick: string,
   company: string,
   currency: string,
+  status: boolean,
   price_yesterday: number,
   price_today: number,
 ): Data {
   const diff = price_today - price_yesterday;
-  return { tick, company, currency, price_yesterday, price_today, diff };
+  return { tick, company, currency, status, price_yesterday, price_today, diff };
 }
 
 export const StockList = () => {
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [stocks, setStocks] = useState<Data[]>([]);
@@ -101,6 +104,7 @@ export const StockList = () => {
           item.tick,
           item.company,
           item.currency,
+          item.status,
           item.price_yesterday,
           item.price_today,
         );
@@ -152,6 +156,16 @@ export const StockList = () => {
 
   };
 
+  const onClickTableRow = (row: Data) => {
+    navigate("/stocks/detail", {
+      state: {
+        tick: row.tick,
+        company: row.company,
+        status: row.status
+      }
+    });
+  };
+
   if (!localStorage.getItem("userID")) {
     return <Navigate to="/" />;
   }
@@ -188,6 +202,8 @@ export const StockList = () => {
                       role="checkbox"
                       tabIndex={-1}
                       key={row.company}
+                      onClick={() => onClickTableRow(row)}
+                      style={{ cursor: "pointer" }}
                     >
                       {columns.map((column) => {
                         const value = row[column.id];

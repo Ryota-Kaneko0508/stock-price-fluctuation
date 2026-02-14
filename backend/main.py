@@ -72,15 +72,16 @@ class Stock(BaseModel):
     tick: str
     company: str
     currency: str
+    status: bool
     price_today: float
     price_yesterday: float
 
 class StockDetail(BaseModel):
     tick: str
     company: str
-    currency: str
+    status: bool
     prices: list[float]
-    times: list[str]
+    dates: list[str]
 
 class Notification(BaseModel):
     user_id: int
@@ -104,6 +105,7 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
     for notification in notifications:
 
         tick = notification.Tick
+        status = notification.Status
 
         #Tikerで一つの銘柄の情報を取得
         stock = yf.Ticker(tick) 
@@ -120,6 +122,7 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
             tick=tick,
             company=company_name,
             currency=currency,
+            status=status,
             price_today=price_today,
             price_yesterday=price_yesterday
         )
@@ -129,7 +132,12 @@ async def get_stocks(x_user_id: Annotated[int, Header()], session: SessionDep) -
     return res
 
 @app.get("/stocks/{stock_id}")
-async def get_stocks(stock_id, tick: str, date: str, offset: int):
+async def get_stocks(x_user_id: Annotated[int, Header()], stock_id, tick: str, date: str, offset: int, session: SessionDep):
+
+    notification = session.exec(select(Notifications).where(Notifications.UserID == x_user_id, Notifications.Tick == stock_id)).all()
+
+    if len(notification) != 0:
+        status = notification[0].Status
 
     #Tikerで一つの銘柄の情報を取得
     stock = yf.Ticker(stock_id) 
@@ -140,12 +148,7 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     # 情報取得(.info)
     stock_info = stock.info
 
-    time_zone = stock_info["exchangeTimezoneName"]
-
-    start_dt = pd.Timestamp.now(tz=time_zone).floor("D")
-    end_dt = pd.Timestamp.now(tz=time_zone).ceil("D")
-
-    stock_download = stock.history("JPY=X", start=start_dt,end=end_dt, interval="1h")
+    stock_download = stock.history(interval="1h").tail(offset)
 
     res_tick = stock_info["symbol"]
     res_company = stock_info["longName"]
@@ -154,8 +157,9 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
         return StockDetail(
             tick = res_tick,
             company = res_company,
+            status = status,
             prices = [],
-            times = []
+            dates = []
         )
 
     stock_download.index = stock_download.index.tz_convert('Asia/Tokyo')
@@ -163,9 +167,9 @@ async def get_stocks(stock_id, tick: str, date: str, offset: int):
     return StockDetail(
         tick = res_tick,
         company = res_company,
-        currency= res_currency,
-        prices = stock_download["Close"].values.tolist()[:offset],
-        times = stock_download.index.strftime("%H:%M").tolist()[:offset]
+        status = status,
+        prices = stock_download["Close"].values.tolist(),
+        dates = stock_download.index.strftime("%Y/%m/%d %H:%M").tolist()
     )
 
 @app.post("/stocks/{stock_id}")
