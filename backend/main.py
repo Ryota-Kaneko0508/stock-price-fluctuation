@@ -1,5 +1,5 @@
 from typing import Annotated
-
+import logging
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query, Header
 from pydantic import BaseModel
@@ -7,7 +7,8 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-
+import sendgrid
+from sendgrid.helpers.mail import Mail, Email, To, Content
 import yfinance as yf
 import pandas as pd
 import datetime
@@ -25,12 +26,31 @@ class Notifications(SQLModel, table=True):
     Tick: str
     Status: bool
 
-database_url =  os.getenv('DB_URL')
+
+database_url = ""
+if os.getenv("ENV") == "prod":
+    db_user = os.getenv('DB_USER')
+    db_port = int(os.getenv("DB_PORT", "5432"))
+    db_pass = os.getenv('DB_PASS')
+    db_name = os.getenv('DB_NAME')
+    db_host = os.getenv('DB_HOST')
+    
+    database_url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+else:
+    # ローカル用
+    database_url =  os.getenv('DB_URL')
+engine = create_engine(database_url)
 
 engine = create_engine(database_url, echo=True)
 
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    try:
+        # ここで処理が止まってタイムアウトするのを防ぐ
+        SQLModel.metadata.create_all(engine)
+        print("DB status: Tables created/checked successfully.")
+    except Exception as e:
+        # エラーをログに出すが、raiseせずにアプリの起動を優先する
+        print(f"DB status: Connection failed (but app will start): {e}")
 
 def get_session():
     with Session(engine) as session:
@@ -218,5 +238,38 @@ async def update_notification(stock_id, update_request: StockPatchRequest, sessi
         res = Notification(user_id=update_request.user_id, tick=stock_id, status=update_request.status)
 
         return res
+    
+@app.post("/tasks/send-mail")
+async def send_main(session: SessionDep):
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(f"--- Stock Check Task Start ---")
+    notifications = session.exec(select(Notifications, Users).join(Users).where(Notifications.Status == True)).all()
+
+    for notification, user in notifications:
+        tick = notification.Tick
+        stock = yf.Ticker(tick)
+        stock_history = stock.history(period="1mo")
+        mean_day7_price = stock_history['Close'].iloc[-8:-1].mean()
+        current_price = stock_history['Close'].iloc[-1]
+        diff_ratio = 100 * (current_price - mean_day7_price) / mean_day7_price
+        
+        if (diff_ratio >= 1.00):
+            sg = sendgrid.SendGridAPIClient(api_key=os.environ.getenv('SENDGRID_API_KEY'))
+            from_email = Email("test@example.com")  # Change to your verified sender
+            to_email = To(user.Email)  # Change to your recipient
+            subject = f"【アラート】{tick}が{diff_ratio}%上昇しました",
+            content = Content("text/plain", f"【アラート】{tick}が{diff_ratio}%上昇しました")
+            mail = Mail(from_email, to_email, subject, content)
+
+            # Get a JSON-ready representation of the Mail object
+            mail_json = mail.get()
+
+            # Send an HTTP POST request to /mail/send
+            response = sg.client.mail.send.post(request_body=mail_json)
+            print(response.status_code)
+            print(response.headers)
+    logger.info(f"--- Stock Check Task Completed ---")
+
 
 

@@ -1,6 +1,7 @@
 version: '3'
 services:
   fastapi:
+    image: backend-fastapi
     build: .
     ports:
       - "8000:8000"
@@ -8,6 +9,7 @@ services:
       - .:/app
     environment:
       - WATCHFILES_FORCE_POLLING=true
+      - PORT=8000
     depends_on:
       - db
 

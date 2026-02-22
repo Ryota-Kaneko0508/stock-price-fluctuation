@@ -1,7 +1,7 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-psycopg2
-yfinance
-sendgrid
-python-dotenv
+fastapi==0.129.0
+uvicorn[standard]==0.40.0
+sqlmodel==0.0.33
+psycopg2-binary==2.9.11
+yfinance==1.1.0
+sendgrid==6.12.5
+python-dotenv==1.2.1
