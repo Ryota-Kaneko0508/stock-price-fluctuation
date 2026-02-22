@@ -5,11 +5,15 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Header
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
 
 import yfinance as yf
 import pandas as pd
 import datetime
 from zoneinfo import ZoneInfo
+
+load_dotenv('.env')
 
 class Users(SQLModel, table=True):
     ID: int | None = Field(default=None, primary_key=True)
@@ -21,7 +25,7 @@ class Notifications(SQLModel, table=True):
     Tick: str
     Status: bool
 
-database_url = "postgresql+psycopg2://postgres:password@db:5432/postgresDB"
+database_url =  os.getenv('DB_URL')
 
 engine = create_engine(database_url, echo=True)
 
@@ -214,3 +218,5 @@ async def update_notification(stock_id, update_request: StockPatchRequest, sessi
         res = Notification(user_id=update_request.user_id, tick=stock_id, status=update_request.status)
 
         return res
+
+

@@ -3,3 +3,5 @@ uvicorn[standard]
 sqlmodel
 psycopg2
 yfinance
+sendgrid
+python-dotenv
