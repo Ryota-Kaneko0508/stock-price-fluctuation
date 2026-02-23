@@ -18,6 +18,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { apiUrl } from "../../constants";
 
 interface Column {
   id: "tick" | "company" | "price_yesterday" | "price_today" | "diff";
@@ -89,7 +90,7 @@ export const StockList = () => {
   const userId = localStorage.getItem("userID");
 
   const fetchStocks = () => {
-    const endpoint = "http://localhost:8000/stocks";
+    const endpoint = `${apiUrl}/stocks`;
   
     const headers = {
       headers: {
@@ -99,7 +100,6 @@ export const StockList = () => {
   
     axios.get(endpoint, headers).then((res) => {
       const datas = res.data.map((item: any) => {
-        console.log(item.currency);
         return createData(
           item.tick,
           item.company,
@@ -141,7 +141,7 @@ export const StockList = () => {
   };
 
   const onClickAdd = () => {
-    const endpoint = `http://localhost:8000/stocks/${inputStock}`;
+    const endpoint = `${apiUrl}/stocks/${inputStock}`;
     const requestBody = {user_id: userId, tick: inputStock}; 
 
     axios.post(endpoint, requestBody).then((res) => {

@@ -5,8 +5,7 @@ import React from 'react';
 import axios from "axios";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "../../firebase";
-
-const endpoint = "http://localhost:8000/users";
+import { apiUrl } from "../../constants";
 
 export const Signup = () => {
   const [email, setEmail] = useState("");
@@ -25,7 +24,8 @@ export const Signup = () => {
     
     signInAnonymously(auth).then((result) => {
       console.log(result);
-      const requestBody = {id: result.user.uid, email: email}; 
+      const endpoint = `${apiUrl}/users`;
+      const requestBody = {id: result.user.uid, email: email};
       axios.post(endpoint, requestBody).then((res) => {
         if (Object.keys(res.data).length > 0) {
           localStorage.setItem("userID", res.data.ID);

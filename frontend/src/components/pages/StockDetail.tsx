@@ -9,6 +9,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
+import { apiUrl } from "../../constants";
 
 const today = new Date();
 const formattedDate = today.toLocaleDateString('ja-JP', {
@@ -36,7 +37,7 @@ export const StockDetail = () => {
   };
 
   useEffect(() => {
-    const endpoint = `http://localhost:8000/stocks/${tick}`;
+    const endpoint = `${apiUrl}/stocks/${tick}`;
     
     const offset = 10
     
@@ -63,7 +64,7 @@ export const StockDetail = () => {
 
   const handleToggleStatus = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newStatus = event.target.checked;
-    const endpoint = `http://localhost:8000/stocks/${tick}`;
+    const endpoint = `${apiUrl}/stocks/${tick}`;
     const requestBody = {user_id: userId, status: newStatus}; 
 
     axios.patch(endpoint, requestBody).then((res) => {
