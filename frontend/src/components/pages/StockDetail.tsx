@@ -87,10 +87,36 @@ export const StockDetail = () => {
         const hh = value.getHours().toString().padStart(2, '0');
         const mm = value.getMinutes().toString().padStart(2, '0');
         return `${y}/${m}/${d} ${hh}:${mm}`;
+      },
+      sx: {
+        "& .MuiChartsAxis-line": { stroke: "#8E8E93" },
+        "& .MuiChartsAxis-tick": { stroke: "#8E8E93" },
+        "& .MuiChartsAxis-tickLabel": { fill: "#8E8E93" }
       }
     }],
-    yAxis: [{label: "株価"}],
-    series: [{ curve: 'linear' as const, data: prices }],
+    yAxis: [{
+      label: "株価",
+      min: Math.min(...prices) * 0.99,
+      max: Math.max(...prices) * 1.01,
+      sx: {
+        "& .MuiChartsAxis-line": { stroke: "#8E8E93" },
+        "& .MuiChartsAxis-tick": { stroke: "#8E8E93" },
+        "& .MuiChartsAxis-tickLabel": { fill: "#8E8E93" },
+        "& .MuiChartsAxis-label": { fill: "#8E8E93" }
+      }
+    }],
+    series: [{
+      curve: 'monotoneX' as const,
+      data: prices,
+      showMark: false, 
+      color: '#ff9900',
+      area: true,
+      sx: {
+        "& .MuiAreaElement-root": {
+          fill: "#fff",   // ← 好きな色
+        }
+      }
+    }],
     height: 500,
   };
 
@@ -104,9 +130,22 @@ export const StockDetail = () => {
         <STitle>{tick}, {company}</STitle>
         <SButton onClick={handleOpen}>通知設定</SButton>
       </SHeaderContainer>
-      <LineChart
-        {...chartProps}
-      />
+      <SChartCard>
+        <LineChart
+          {...chartProps}
+          grid={{ vertical: true, horizontal: true }}
+          sx={{
+            "& .MuiChartsGrid-line": {
+              stroke: "#333",   // ← ここで色変更
+            },
+            "& .MuiAreaElement-root": {
+              fill: "#ff9900",
+              opacity: 0.3
+            },
+          }}
+        />
+
+      </SChartCard>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>{tick}の通知設定</DialogTitle>
         <DialogActions style={{display: "flex", justifyContent: "center"}}>
@@ -147,4 +186,12 @@ const SButton = styled.button`
   &:hover {
     opacity: 0.8;
   }
+`;
+
+const SChartCard = styled.div`
+  margin-top: 10px;
+  background: #000000;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 `;
