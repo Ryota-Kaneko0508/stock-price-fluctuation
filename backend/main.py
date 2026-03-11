@@ -1,7 +1,7 @@
 from typing import Annotated
 import logging
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, Query, Header
+from fastapi import Depends, FastAPI, HTTPException, Query, Header, Request
 from pydantic import BaseModel
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +13,7 @@ import yfinance as yf
 import pandas as pd
 import datetime
 from zoneinfo import ZoneInfo
+import boto3
 
 load_dotenv('.env')
 
@@ -245,6 +246,14 @@ async def send_main(session: SessionDep):
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(f"--- Stock Check Task Start ---")
+
+    client = boto3.client(
+        "ses",
+        aws_access_key_id = os.getenv('ses_access_key_id'),
+        aws_secret_access_key = os.getenv('ses_secret_access_key'),
+        region_name="ap-northeast-1"
+    )
+
     notifications = session.exec(select(Notifications, Users).join(Users).where(Notifications.Status == True)).all()
 
     for notification, user in notifications:
@@ -255,22 +264,44 @@ async def send_main(session: SessionDep):
         current_price = stock_history['Close'].iloc[-1]
         diff_ratio = 100 * (current_price - mean_day7_price) / mean_day7_price
         
-        if (diff_ratio >= 1.00):
-            sg = sendgrid.SendGridAPIClient(api_key=os.environ.getenv('SENDGRID_API_KEY'))
-            from_email = Email("test@example.com")  # Change to your verified sender
-            to_email = To(user.Email)  # Change to your recipient
-            subject = f"【アラート】{tick}が{diff_ratio}%上昇しました",
-            content = Content("text/plain", f"【アラート】{tick}が{diff_ratio}%上昇しました")
-            mail = Mail(from_email, to_email, subject, content)
+        if diff_ratio >= 1 or diff_ratio <= -1:
+            from_email = os.getenv('FROM_EMAIL')
+            to_email = user.Email
+            
+            # メッセージ内容の条件分岐
+            direction = "上昇" if diff_ratio >= 1 else "下降"
+            subject = f"【アラート】{tick}が{abs(diff_ratio):.2f}%{direction}しました"
+            content = f"【アラート】{tick}が{abs(diff_ratio):.2f}%{direction}しました"
+            
+            try:
+                response = client.send_email(
+                    Source = from_email,
+                    Destination = {
+                        'ToAddresses': [to_email]
+                    },
+                    Message = {
+                        'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                        'Body': {
+                            'Text': {'Data': content, 'Charset': 'UTF-8'}
+                        }
+                    },
+                )
 
-            # Get a JSON-ready representation of the Mail object
-            mail_json = mail.get()
+                # レスポンスの表示（boto3は辞書形式なので修正）
+                logger.info(f"送信成功: MessageId {response['MessageId']}")
+                logger.info(f"HTTP Status: {response['ResponseMetadata']['HTTPStatusCode']}")
 
-            # Send an HTTP POST request to /mail/send
-            response = sg.client.mail.send.post(request_body=mail_json)
-            print(response.status_code)
-            print(response.headers)
+            except Exception as e:
+                logger.error(f"メール送信エラー ({tick}): {e}")
     logger.info(f"--- Stock Check Task Completed ---")
+
+@app.post("/callback")
+async def handle_callback(request: Request):
+    # LINEからのリクエストボディを取得
+    body = await request.body()
+    # ここに署名検証やメッセージ処理（オウム返しなど）を書きます
+    print(f"LINE Webhook received: {body}")
+    return "OK"
 
 
 
