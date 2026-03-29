@@ -304,8 +304,13 @@ async def send_main(session: SessionDep):
 @app.post("/line/webhook")
 async def webhook(request: Request, session: SessionDep):
     # LINEからのリクエストボディを取得
-    body = await request.body()
-    events = body.get("events", [])
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # これで .get() が使えるようになります
+    events = data.get("events", [])
 
     for event in events:
         if event["type"] == "message" and event["message"]["type"] == "text":
@@ -322,7 +327,7 @@ async def webhook(request: Request, session: SessionDep):
                 TextSendMessage(text=response_message)
             )
 
-    print(f"LINE Webhook received: {body}")
+    print(f"LINE Webhook received: {data}")
     return "OK"
 
 def link_line_user_by_email(session: Session, email: str, line_uid: str) -> str:
