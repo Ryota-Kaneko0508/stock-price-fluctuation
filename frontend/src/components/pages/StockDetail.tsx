@@ -149,10 +149,7 @@ export const StockDetail = () => {
         <STitle>
           {tick}, {company}
         </STitle>
-        <SButtonGroup>
-          <SLineButton onClick={handleOpen}>LINEで通知を受け取る</SLineButton>
-          <SButton onClick={handleOpen}>通知設定</SButton>
-        </SButtonGroup>
+        <SButton onClick={handleOpen}>通知設定</SButton>
       </SHeaderContainer>
       <SChartCard>
         <LineChart
@@ -203,26 +200,8 @@ const STitle = styled.p`
   font-price_today: 20px;
 `;
 
-const SButtonGroup = styled.div`
-  display: flex;
-  gap: 15px;
-`;
-
 const SButton = styled.button`
   background-color: #11999e;
-  color: #fff;
-  padding: 10px 24px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: opacity 0.3s;
-  &:hover {
-    opacity: 0.8;
-  }
-`;
-
-const SLineButton = styled.button`
-  background-color: #06c755;
   color: #fff;
   padding: 10px 24px;
   border: none;

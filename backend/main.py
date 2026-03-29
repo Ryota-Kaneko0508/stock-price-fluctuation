@@ -306,7 +306,7 @@ async def send_main(session: SessionDep):
                     # push_message(送信先UID, 送信内容)
                     line_bot_api.push_message(
                         user.LineUserID,
-                        TextSendMessage(text=content)
+                        messages=TextSendMessage(text=content)
                     )
                     logger.info(f"LINE sent to {user.LineUserID}")
                 except Exception as e:
