@@ -14,12 +14,18 @@ import pandas as pd
 import datetime
 from zoneinfo import ZoneInfo
 import boto3
+import re
+from linebot import LineBotApi, WebhookHandler
+from linebot.models import TextSendMessage
 
 load_dotenv('.env')
+channel_access_token = os.getenv("CHANNEL_ACCESS_TOKEN")
+line_bot_api = LineBotApi(channel_access_token)
 
 class Users(SQLModel, table=True):
     ID: int | None = Field(default=None, primary_key=True)
     Email: str
+    LineUserID: str | None = Field(default=None)
 
 class Notifications(SQLModel, table=True):
     ID: int | None = Field(default=None, primary_key=True)
@@ -295,13 +301,63 @@ async def send_main(session: SessionDep):
                 logger.error(f"メール送信エラー ({tick}): {e}")
     logger.info(f"--- Stock Check Task Completed ---")
 
-@app.post("/callback")
-async def handle_callback(request: Request):
+@app.post("/line/webhook")
+async def webhook(request: Request, session: SessionDep):
     # LINEからのリクエストボディを取得
     body = await request.body()
-    # ここに署名検証やメッセージ処理（オウム返しなど）を書きます
+    events = body.get("events", [])
+
+    for event in events:
+        if event["type"] == "message" and event["message"]["type"] == "text":
+            line_uid = event["source"]["userId"]
+            text = event["message"]["text"].strip()
+            reply_token = event["replyToken"]
+
+            # 関数を呼び出して結果メッセージを取得
+            response_message = link_line_user_by_email(session, text, line_uid)
+
+            # LINEに返信
+            line_bot_api.reply_message(
+                reply_token, 
+                TextSendMessage(text=response_message)
+            )
+
     print(f"LINE Webhook received: {body}")
     return "OK"
+
+def link_line_user_by_email(session: Session, email: str, line_uid: str) -> str:
+    """
+    メールアドレスを元にユーザーを探し、LineUserIDを紐付ける関数
+    """
+    # 1. 前後の空白削除と小文字化（入力ミス対策）
+    clean_email = email.strip().lower()
+    
+    # 2. メールアドレス形式のバリデーション
+    email_pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if not re.match(email_pattern, clean_email):
+        return "メールアドレスを入力してください。例: example@mail.com"
+
+    # 3. DBからEmailが一致するユーザーを検索
+    statement = select(Users).where(Users.Email == clean_email)
+    users = session.exec(statement).all()
+
+    if users:
+        # 4. LineUserIDを更新
+        for user in users:
+            user.LineUserID = line_uid
+            session.add(user)
+
+        session.commit()
+        
+        for user in users:
+            session.refresh(user)
+
+        return f"連携完了！\n{clean_email} とLINEを紐付けました📈"
+    else:
+        return f"ご入力の {clean_email} はアプリで登録されていないようです。"
+
+
+
 
 
 

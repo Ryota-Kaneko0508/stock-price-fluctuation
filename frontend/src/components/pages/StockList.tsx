@@ -38,7 +38,7 @@ const columns: readonly Column[] = [
     minWidth: 170,
     align: "right",
     priceFormat: (value: number, currency: string) =>
-      value.toLocaleString("ja-JP", { style: "currency", currency: currency })
+      value.toLocaleString("ja-JP", { style: "currency", currency: currency }),
   },
   {
     id: "price_today",
@@ -77,7 +77,15 @@ function createData(
   price_today: number,
 ): Data {
   const diff = price_today - price_yesterday;
-  return { tick, company, currency, status, price_yesterday, price_today, diff };
+  return {
+    tick,
+    company,
+    currency,
+    status,
+    price_yesterday,
+    price_today,
+    diff,
+  };
 }
 
 export const StockList = () => {
@@ -87,17 +95,18 @@ export const StockList = () => {
   const [stocks, setStocks] = useState<Data[]>([]);
   const [inputStock, setInputStock] = useState("");
   const [open, setOpen] = useState(false);
+  const [lineDialogOpen, setLineDialogOpen] = useState(false);
   const userId = localStorage.getItem("userID");
 
   const fetchStocks = () => {
     const endpoint = `${apiUrl}/stocks`;
-  
+
     const headers = {
       headers: {
         "x-user-id": userId,
       },
     };
-  
+
     axios.get(endpoint, headers).then((res) => {
       const datas = res.data.map((item: any) => {
         return createData(
@@ -111,7 +120,7 @@ export const StockList = () => {
       });
       setStocks(datas);
     });
-  }
+  };
 
   useEffect(() => {
     fetchStocks();
@@ -123,6 +132,14 @@ export const StockList = () => {
 
   const handleClose = () => {
     setOpen(false);
+  };
+
+  const handleLineOpen = () => {
+    setLineDialogOpen(true);
+  };
+
+  const handleLineClose = () => {
+    setLineDialogOpen(false);
   };
 
   const onChangeInput = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,18 +159,19 @@ export const StockList = () => {
 
   const onClickAdd = () => {
     const endpoint = `${apiUrl}/stocks/${inputStock}`;
-    const requestBody = {user_id: userId, tick: inputStock}; 
+    const requestBody = { user_id: userId, tick: inputStock };
 
-    axios.post(endpoint, requestBody).then((res) => {
-      setOpen(false);
-      alert("登録が完了しました！");
-      setInputStock("");
-      fetchStocks();
-
-    }).catch((e) => {
-      alert("該当する銘柄が見つかりませんでした");
-    });
-
+    axios
+      .post(endpoint, requestBody)
+      .then((res) => {
+        setOpen(false);
+        alert("登録が完了しました！");
+        setInputStock("");
+        fetchStocks();
+      })
+      .catch((e) => {
+        alert("該当する銘柄が見つかりませんでした");
+      });
   };
 
   const onClickTableRow = (row: Data) => {
@@ -161,9 +179,13 @@ export const StockList = () => {
       state: {
         tick: row.tick,
         company: row.company,
-        status: row.status
-      }
+        status: row.status,
+      },
     });
+  };
+
+  const onClickLineAdd = () => {
+    window.open("https://lin.ee/nEj85n9O");
   };
 
   if (!localStorage.getItem("userID")) {
@@ -174,7 +196,10 @@ export const StockList = () => {
     <SWrapper>
       <SHeaderContainer>
         <STitle>株価一覧</STitle>
-        <SButton onClick={handleOpen}>+ 追加する</SButton>
+        <SButtonGroup>
+          <SLineButton onClick={handleLineOpen}>公式ラインを追加</SLineButton>
+          <SButton onClick={handleOpen}>+ 追加する</SButton>
+        </SButtonGroup>
       </SHeaderContainer>
       <Paper sx={{ width: "100%", overflow: "hidden" }}>
         <TableContainer sx={{ maxHeight: 440 }}>
@@ -210,11 +235,14 @@ export const StockList = () => {
 
                         let displayValue = value;
                         if (typeof value === "number") {
-                            if (column.priceFormat) {
-                              displayValue = column.priceFormat(value, row.currency);
-                            } else if (column.format) {
-                              displayValue = column.format(value);
-                            }
+                          if (column.priceFormat) {
+                            displayValue = column.priceFormat(
+                              value,
+                              row.currency,
+                            );
+                          } else if (column.format) {
+                            displayValue = column.format(value);
+                          }
                         }
 
                         let textColor = "inherit";
@@ -272,6 +300,23 @@ export const StockList = () => {
           <Button onClick={onClickAdd}>追加</Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={lineDialogOpen} onClose={handleLineClose}>
+        <DialogTitle>LINE通知の連携方法</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            以下の手順でLINE通知を有効にできます。
+            <br />
+            <br />
+            1. 下のボタンから公式LINEを友だち追加
+            <br />
+            2. LINEトーク画面で、本アプリに登録したメールアドレスを入力
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleLineClose}>閉じる</Button>
+          <SLineButton onClick={onClickLineAdd}>LINEを開く</SLineButton>
+        </DialogActions>
+      </Dialog>
     </SWrapper>
   );
 };
@@ -293,10 +338,28 @@ const STitle = styled.p`
   font-price_today: 20px;
 `;
 
+const SButtonGroup = styled.div`
+  display: flex;
+  gap: 15px;
+`;
+
 const SButton = styled.button`
   background-color: #11999e;
   color: #fff;
   padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+const SLineButton = styled.button`
+  background-color: #06c755;
+  color: #fff;
+  padding: 10px 24px;
   border: none;
   border-radius: 8px;
   cursor: pointer;

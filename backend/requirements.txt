@@ -6,3 +6,4 @@ yfinance==1.1.0
 sendgrid==6.12.5
 python-dotenv==1.2.1
 boto3
+line-bot-sdk
