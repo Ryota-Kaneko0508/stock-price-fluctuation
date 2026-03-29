@@ -308,8 +308,10 @@ async def send_main(session: SessionDep):
                         user.LineUserID,
                         messages=TextSendMessage(text=content)
                     )
+                    logger.info("LINEメッセージ送信成功")
                     logger.info(f"LINE sent to {user.LineUserID}")
                 except Exception as e:
+                    logger.info("LINEメッセージ送信失敗")
                     logger.error(f"LINE error ({tick}): {e}")
     logger.info(f"--- Stock Check Task Completed ---")
 
