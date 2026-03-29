@@ -247,7 +247,7 @@ async def update_notification(stock_id, update_request: StockPatchRequest, sessi
 
         return res
     
-@app.post("/tasks/send-mail")
+@app.post("/tasks/send-message")
 async def send_main(session: SessionDep):
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
@@ -299,6 +299,18 @@ async def send_main(session: SessionDep):
 
             except Exception as e:
                 logger.error(f"メール送信エラー ({tick}): {e}")
+
+            # --- 2. LINE送信 (Messaging API) ---
+            if user.LineUserID:
+                try:
+                    # push_message(送信先UID, 送信内容)
+                    line_bot_api.push_message(
+                        user.LineUserID,
+                        TextSendMessage(text=content)
+                    )
+                    logger.info(f"LINE sent to {user.LineUserID}")
+                except Exception as e:
+                    logger.error(f"LINE error ({tick}): {e}")
     logger.info(f"--- Stock Check Task Completed ---")
 
 @app.post("/line/webhook")
